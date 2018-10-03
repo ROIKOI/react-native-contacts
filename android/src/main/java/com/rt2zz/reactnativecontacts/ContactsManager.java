@@ -94,6 +94,30 @@ public class ContactsManager extends ReactContextBaseJavaModule {
         });
     }
 
+    @ReactMethod
+    public void getMe(final Callback callback) {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                ContactsProvider cp = new ContactsProvider(
+                        getReactApplicationContext().getContentResolver());
+                callback.invoke(null, cp.getMe());
+            }
+        });
+    }
+
+    @ReactMethod
+    public void getBatch(final int position, final int limit, final Callback callback) {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                ContactsProvider cp = new ContactsProvider(
+                        getReactApplicationContext().getContentResolver());
+                callback.invoke(null, cp.getBatch(position, limit));
+            }
+        });
+    }
+
     /*
      * Returns all contacts matching string
      */
@@ -107,7 +131,7 @@ public class ContactsManager extends ReactContextBaseJavaModule {
      * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
      *
      * @param searchString String to match
-     * @param callback user provided callback to run at completion
+     * @param callback     user provided callback to run at completion
      */
     private void getAllContactsMatchingString(final String searchString, final Callback callback) {
         AsyncTask.execute(new Runnable() {
@@ -127,7 +151,7 @@ public class ContactsManager extends ReactContextBaseJavaModule {
      * Retrieves <code>thumbnailPath</code> for contact, or <code>null</code> if not available.
      *
      * @param contactId contact identifier, <code>recordID</code>
-     * @param callback callback
+     * @param callback  callback
      */
     @ReactMethod
     public void getPhotoForId(final String contactId, final Callback callback) {
@@ -369,7 +393,7 @@ public class ContactsManager extends ReactContextBaseJavaModule {
                 .withValue(StructuredName.PREFIX, prefix)
                 .withValue(StructuredName.SUFFIX, suffix);
         ops.add(op.build());
-        
+
         op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                 .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
                 .withValue(ContactsContract.Data.MIMETYPE, Note.CONTENT_ITEM_TYPE)
@@ -413,18 +437,18 @@ public class ContactsManager extends ReactContextBaseJavaModule {
             ops.add(op.build());
         }
 
-        if(thumbnailPath != null && !thumbnailPath.isEmpty()) {
+        if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
             Bitmap photo = BitmapFactory.decodeFile(thumbnailPath);
 
-            if(photo != null) {
+            if (photo != null) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                        .withValue(ContactsContract.Data.MIMETYPE,ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
                         .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, toByteArray(photo))
                         .build());
             }
         }
-    
+
         ReadableArray postalAddresses = contact.hasKey("postalAddresses") ? contact.getArray("postalAddresses") : null;
         if (postalAddresses != null) {
             for (int i = 0; i < postalAddresses.size(); i++) {
@@ -443,13 +467,13 @@ public class ContactsManager extends ReactContextBaseJavaModule {
                 ops.add(op.build());
             }
         }
-      
+
         Context ctx = getReactApplicationContext();
         try {
             ContentResolver cr = ctx.getContentResolver();
             ContentProviderResult[] result = cr.applyBatch(ContactsContract.AUTHORITY, ops);
 
-            if(result != null && result.length > 0) {
+            if (result != null && result.length > 0) {
 
                 String rawId = String.valueOf(ContentUris.parseId(result[0].uri));
 
@@ -457,7 +481,7 @@ public class ContactsManager extends ReactContextBaseJavaModule {
                 WritableMap newlyAddedContact = contactsProvider.getContactByRawId(rawId);
 
                 callback.invoke(null, newlyAddedContact); // success           
-            }      
+            }
         } catch (Exception e) {
             callback.invoke(e.toString());
         }
@@ -466,8 +490,8 @@ public class ContactsManager extends ReactContextBaseJavaModule {
     public byte[] toByteArray(Bitmap bitmap) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
-        return stream.toByteArray();       
-    }    
+        return stream.toByteArray();
+    }
 
     /*
      * Update contact to phone's addressbook
@@ -619,13 +643,13 @@ public class ContactsManager extends ReactContextBaseJavaModule {
             ops.add(op.build());
         }
 
-         if(thumbnailPath != null && !thumbnailPath.isEmpty()) {
+        if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
             Bitmap photo = BitmapFactory.decodeFile(thumbnailPath);
-     
-            if(photo != null) {
+
+            if (photo != null) {
                 ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                        .withValue(ContactsContract.Data.MIMETYPE,ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
                         .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, toByteArray(photo))
                         .build());
             }
@@ -653,13 +677,13 @@ public class ContactsManager extends ReactContextBaseJavaModule {
             ContentResolver cr = ctx.getContentResolver();
             ContentProviderResult[] result = cr.applyBatch(ContactsContract.AUTHORITY, ops);
 
-            if(result != null && result.length > 0) {
+            if (result != null && result.length > 0) {
 
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
                 WritableMap updatedContact = contactsProvider.getContactById(recordID);
 
                 callback.invoke(null, updatedContact); // success           
-            }      
+            }
         } catch (Exception e) {
             callback.invoke(e.toString());
         }
@@ -672,23 +696,24 @@ public class ContactsManager extends ReactContextBaseJavaModule {
     public void deleteContact(ReadableMap contact, Callback callback) {
 
         String recordID = contact.hasKey("recordID") ? contact.getString("recordID") : null;
-      
+
         try {
-               Context ctx = getReactApplicationContext();
+            Context ctx = getReactApplicationContext();
 
-               Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI,recordID);
-               ContentResolver cr = ctx.getContentResolver();
-               int deleted = cr.delete(uri,null,null);
+            Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, recordID);
+            ContentResolver cr = ctx.getContentResolver();
+            int deleted = cr.delete(uri, null, null);
 
-               if(deleted > 0)
-                 callback.invoke(null, recordID); // success
-               else
-                 callback.invoke(null, null); // something was wrong
+            if (deleted > 0)
+                callback.invoke(null, recordID); // success
+            else
+                callback.invoke(null, null); // something was wrong
 
         } catch (Exception e) {
             callback.invoke(e.toString(), null);
         }
     }
+
     /*
      * Check permission
      */

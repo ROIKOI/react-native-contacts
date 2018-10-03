@@ -14,6 +14,7 @@ import com.facebook.react.bridge.WritableMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,11 +161,11 @@ public class ContactsProvider {
                 }
             }
         }
-        
+
         if(matchingContacts.values().size() > 0) {
             return matchingContacts.values().iterator().next().toMap();
         }
-        
+
        return null;
     }
 
@@ -386,6 +387,118 @@ public class ContactsProvider {
         }
 
         return map;
+    }
+
+    public WritableMap getMe() {
+        Cursor cursor = contentResolver.query(
+                Uri.withAppendedPath(ContactsContract.Profile.CONTENT_URI, ContactsContract.Contacts.Data.CONTENT_DIRECTORY),
+                JUST_ME_PROJECTION.toArray(new String[JUST_ME_PROJECTION.size()]),
+                null,
+                null,
+                null);
+
+        Contact me = null;
+
+        try {
+            Iterator<Contact> i = loadContactsFrom(cursor).values().iterator();
+            if (i.hasNext()) {
+                me = i.next();
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        return me.toMap();
+    }
+
+    public WritableMap getBatch(final int position, final int limit) {
+        WritableMap ret = Arguments.createMap();
+
+        Cursor nameCursor = contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                new String[]{
+                        ContactsContract.Data._ID,
+                        ContactsContract.Data.CONTACT_ID,
+                        ContactsContract.Contacts.DISPLAY_NAME
+                },
+                ContactsContract.Data.MIMETYPE + "=?",
+                new String[]{StructuredName.CONTENT_ITEM_TYPE},
+                ContactsContract.Contacts.DISPLAY_NAME);
+
+        ArrayList<String> contactIds = new ArrayList<>();
+        try {
+            if (nameCursor != null) {
+                ret.putInt("count", nameCursor.getCount());
+                nameCursor.moveToPosition(position);
+                for (int i = 0; i < limit; i++) {
+                    if (nameCursor.moveToNext()) {
+                        int columnIndexContactId = nameCursor.getColumnIndex(ContactsContract.Data.CONTACT_ID);
+                        String contactId = nameCursor.getString(columnIndexContactId);
+                        contactIds.add(contactId);
+                    }
+                }
+                ret.putInt("position", nameCursor.getPosition());
+            } else {
+                ret.putInt("count", 0);
+                ret.putInt("position", -1);
+            }
+        } finally {
+            if (nameCursor != null) {
+                nameCursor.close();
+            }
+        }
+
+        ArrayList<String> qms = new ArrayList<>();
+        for (int i = 0; i<limit; i++) {
+            qms.add("?");
+        }
+
+        String commas = TextUtils.join(",", qms);
+
+        ArrayList<String> selectionArgs = new ArrayList<>(contactIds);
+        selectionArgs.addAll(
+                Arrays.asList(
+                        Email.CONTENT_ITEM_TYPE,
+                        Phone.CONTENT_ITEM_TYPE,
+                        StructuredName.CONTENT_ITEM_TYPE,
+                        Organization.CONTENT_ITEM_TYPE,
+                        StructuredPostal.CONTENT_ITEM_TYPE,
+                        Event.CONTENT_ITEM_TYPE));
+
+        Cursor cursor = contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]),
+                ContactsContract.Data.CONTACT_ID + " IN (" + commas + ") AND (" +
+                        ContactsContract.Data.MIMETYPE + "=? OR " +
+                        ContactsContract.Data.MIMETYPE + "=? OR " +
+                        ContactsContract.Data.MIMETYPE + "=? OR " +
+                        ContactsContract.Data.MIMETYPE + "=? OR " +
+                        ContactsContract.Data.MIMETYPE + "=? OR " +
+                        ContactsContract.Data.MIMETYPE + "=?)",
+                selectionArgs.toArray(new String[selectionArgs.size()]),
+                ContactsContract.Data.CONTACT_ID);
+
+        WritableArray contacts = Arguments.createArray();
+
+        try {
+            Map<String, Contact> m = loadContactsFrom(cursor);
+            for (String contactId : contactIds) {
+                Contact c = m.get(contactId);
+                if(c != null) {
+                    contacts.pushMap(c.toMap());
+                }
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+
+        ret.putArray("contacts", contacts);
+
+        return ret;
     }
 
     public String getPhotoUriFromContactId(String contactId) {
