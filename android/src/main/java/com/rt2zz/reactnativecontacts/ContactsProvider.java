@@ -451,7 +451,7 @@ public class ContactsProvider {
         }
 
         ArrayList<String> qms = new ArrayList<>();
-        for (int i = 0; i<limit; i++) {
+        for (int i = 0; i<contactIds.size(); i++) {
             qms.add("?");
         }
 
