@@ -597,7 +597,7 @@ public class ContactsProvider {
 
             WritableArray postalAddresses = Arguments.createArray();
             for (PostalAddressItem item : this.postalAddresses) {
-                postalAddresses.pushMap(item.map);
+                postalAddresses.pushMap(item.toMap());
             }
             contact.putArray("postalAddresses", postalAddresses);
 
@@ -649,27 +649,34 @@ public class ContactsProvider {
         }
 
         public static class PostalAddressItem {
-            public final WritableMap map;
+            private final String label;
+            private final String formattedAddress;
+            private final String street;
+            private final String pobox;
+            private final String neighborhood;
+            private final String city;
+            private final String region;
+            private final String state;
+            private final String postCode;
+            private final String country;
 
             public PostalAddressItem(Cursor cursor) {
-                map = Arguments.createMap();
-
-                map.putString("label", getLabel(cursor));
-                putString(cursor, "formattedAddress", StructuredPostal.FORMATTED_ADDRESS);
-                putString(cursor, "street", StructuredPostal.STREET);
-                putString(cursor, "pobox", StructuredPostal.POBOX);
-                putString(cursor, "neighborhood", StructuredPostal.NEIGHBORHOOD);
-                putString(cursor, "city", StructuredPostal.CITY);
-                putString(cursor, "region", StructuredPostal.REGION);
-                putString(cursor, "state", StructuredPostal.REGION);
-                putString(cursor, "postCode", StructuredPostal.POSTCODE);
-                putString(cursor, "country", StructuredPostal.COUNTRY);
+                this.label =  getLabel(cursor);
+                this.formattedAddress = cursor.getString(cursor.getColumnIndex(StructuredPostal.FORMATTED_ADDRESS));
+                this.street = cursor.getString(cursor.getColumnIndex(StructuredPostal.STREET));
+                this.pobox = cursor.getString(cursor.getColumnIndex(StructuredPostal.POBOX));
+                this.neighborhood = cursor.getString(cursor.getColumnIndex(StructuredPostal.NEIGHBORHOOD));
+                this.city = cursor.getString(cursor.getColumnIndex(StructuredPostal.CITY));
+                this.region = cursor.getString(cursor.getColumnIndex(StructuredPostal.REGION));
+                this.state = cursor.getString(cursor.getColumnIndex(StructuredPostal.REGION));
+                this.postCode = cursor.getString(cursor.getColumnIndex(StructuredPostal.POSTCODE));
+                this.country = cursor.getString(cursor.getColumnIndex(StructuredPostal.COUNTRY));
             }
 
-            private void putString(Cursor cursor, String key, String androidKey) {
-                final String value = cursor.getString(cursor.getColumnIndex(androidKey));
-                if (!TextUtils.isEmpty(value))
+            private void putString(WritableMap map, String key, String value) {
+                if (!TextUtils.isEmpty(value)) {
                     map.putString(key, value);
+                }
             }
 
             static String getLabel(Cursor cursor) {
@@ -683,6 +690,21 @@ public class ContactsProvider {
                         return label != null ? label : "";
                 }
                 return "other";
+            }
+
+            private WritableMap toMap() {
+                final WritableMap map = Arguments.createMap();
+                putString(map, "label", this.label);
+                putString(map, "formattedAddress", this.formattedAddress);
+                putString(map, "street", this.street);
+                putString(map, "pobox", this.pobox);
+                putString(map, "neighborhood", this.neighborhood);
+                putString(map, "city", this.city);
+                putString(map, "region", this.region);
+                putString(map, "state", this.state);
+                putString(map, "postCode", this.postCode);
+                putString(map, "country", this.country);
+                return map;
             }
         }
     }
